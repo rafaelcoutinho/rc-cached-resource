@@ -12,7 +12,10 @@
     
 } (this, function (angular) {
     'use strict';
-    
+    function isFunction(functionToCheck) {
+        var getType = {};
+        return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
+    }
     function CacheEntry(url, params, actions, cacheParams, $localStorage, $q, $resource, $log, $timeout) {
         this.res = $resource(url,params,actions);
         this.cacheTimeout = cacheParams.cacheTimeout*1000*60;//minutes
@@ -26,98 +29,125 @@
             throw "Cache name is mandatory";
         }
       
-         $log.debug("creating cached resource",url,this.name,this.cacheTimeout);
+         
          var forEach = angular.forEach;
          var me = this;
          if(!$localStorage[this.name]){
+             $log.debug("creating cached resource",url,this.name,this.cacheTimeout);
              $localStorage[this.name]={};
          }
          this.clear = function(){
-		$log.log("Limpando cache",this.name);
+		      $log.log("Limpando cache",this.name);
              delete $localStorage[this.name];
              $localStorage[this.name]={};
          }
          if(!actions["get"]){
              actions["get"]={method: 'GET'};
          }
-           if(!actions["query"]){
+         if(!actions["query"]){
              actions["query"]={method: 'GET', isArray: true};
          }
          
          
          forEach(actions, function (action, nameFct) {
              me[nameFct] = function (a, b) {
+                   if(isFunction(a)==true){
+                       $log.info("param a is a function");
+                   }
+                   if(isFunction(b)==true){
+                       $log.info("param b is a function");
+                   }
                  var deferred = $q.defer();
-                 
-                
-                    var cacheName = nameFct;
-                    var cacheParams = action.cr;
-                    if(!cacheParams){
-                        cacheParams={};
-                    }
-                    if(cacheParams.cacheName){
-                        cacheName=cacheParams.cacheName(a);
-                        $log.debug(cacheName,me.name);                     
-                    }
-                    var cache = $localStorage[me.name][cacheName];
-                    
-                    var checkValidity = function (cacheEntry) {
-                        var timeout = me.cacheTimeout;
-                        if (cacheParams.isCacheValid) {
-                            $log.debug("using cr_isCacheValid function timeout");
-                            return cacheParams.isCacheValid(cacheEntry, params);
-                        } else if (cacheParams.timeout) {
-                            $log.debug("using actions timeout", cacheParams.timeout);
-                            timeout = cacheParams.timeout;
-                        } else {
-                            $log.debug("using def constructor timeout", timeout);
-                        }
+                 if ( nameFct!='get' && nameFct!='query' && action.method != 'GET') {
+                     $log.info("NOT a GET method, execute action ", action,"name", nameFct);
+                     me.res[nameFct](a, b,
+                         function (data) {
+                             deferred.resolve(data);
+                         },
+                         function (err) {
+                             deferred.reject(err);
+                         }
+                         )
+                     return deferred.promise;
+                 };
 
-                        return (timeout <= 0 || ((new Date().getTime() - cache.date) < timeout));
-                    }
-                    var reloadCache = function (executeCallback,onFailure) {
-                        me.res[nameFct](a, b,
-                            function (data) {
-                                var cacheData = {
-                                    data: data,
-                                    date: new Date().getTime()
-                                }
-                                $localStorage[me.name][cacheName] = cacheData;
-                                if (executeCallback) {
-                                    deferred.resolve(data);
-                                }
-                            }, function (error) {
-                                $log.log("erro", error)
-                                if (executeCallback) {
-                                    if(onFailure!=null){
-                                        deferred.resolve(onFailure)
-                                    }else{
-                                        deferred.reject(error);
-                                    }
-                                }
-                            });
-                    };
-                    if (cache && cache.data != null) {
-                        //checar se está velho:
-                        if (checkValidity(cache) == true) {
-                            $log.debug("Cache hit '" + (cacheName) + "'");
-                            deferred.resolve(cache.data);
-                            if (cacheParams.cacheHalfLife && cacheParams.cacheHalfLife(cache)) {
-                                $log.debug("Cache halflife reached");
-                                reloadCache(false);
-                            }
-                        }else{
-                            reloadCache(true,cache.data);
-                        }
-                        
-                        
-                    } else {
-                        $log.debug("Cache miss '" + (cacheName) + "'");
-                        reloadCache(true);
-                    }
+
+                 var cacheName = nameFct;
+                 var cacheParams = action.cr;
+                 if (!cacheParams) {
+                     cacheParams = {};
+                 }
+                 if (cacheParams.cacheName) {
+                     cacheName = cacheParams.cacheName(a);
+                     $log.debug(cacheName, me.name);
+                 }
+                 var cache = $localStorage[me.name][cacheName];
+
+                 var checkValidity = function (cacheEntry) {
+                     var timeout = me.cacheTimeout;
+                     if (cacheParams.isCacheValid) {
+                         $log.debug("   using cr_isCacheValid function timeout");
+                         return cacheParams.isCacheValid(cacheEntry, params);
+                     } else if (cacheParams.timeout) {
+                         $log.debug("   using actions timeout", (cacheParams.timeout/1000)+"s");
+                         timeout = cacheParams.timeout;
+                     } else {
+                         $log.debug("   using def constructor timeout", (timeout/1000)+"s");
+                     }
+
+                     return (timeout <= 0 || ((new Date().getTime() - cache.date) < timeout));
+                 }
+                 var reloadCache = function (executeCallback, onFailure) {
+                      console.log("    reloadCache ",cacheName,me.res[nameFct]);
+                     try{
+                     me.res[nameFct](a, b,
+                         function (data) {
+                             $log.debug("Storing '" + "("+me.name+"."+cacheName+")' ",$localStorage[me.name][cacheName])
+                             var cacheData = {
+                                 data: data,
+                                 date: new Date().getTime()
+                             }
+                             $localStorage[me.name][cacheName] = cacheData;
+                              
+                             if (executeCallback) {
+                                 deferred.resolve(data);
+                             }
+                         }, function (error) {
+                             $log.log("erro", error)
+                             if (executeCallback) {
+                                 if (onFailure != null) {
+                                     deferred.resolve(onFailure)
+                                 } else {
+                                     deferred.reject(error);
+                                 }
+                             }
+                         });
+                     }catch(e){
+                         $log.log("erro ceatch", e);
+                     }
+                 };
+                 if (cache && cache.data != null) {
+                     //check if it's expired
+                     if (checkValidity(cache) == true) {
+                         $log.debug("Cache hit '" + (cacheName) + "'");
+                         deferred.resolve(cache.data);
+                         if (cacheParams.cacheHalfLife && cacheParams.cacheHalfLife(cache)) {
+                             $log.debug("Cache halflife reached");
+                             reloadCache(false);
+                         }
+                     } else {
+                          $log.debug("Cache expired '" + (cacheName) + "'");
+                         reloadCache(true, cache.data);
+                     }
+
+
+                 } else {
+                     $log.debug("Cache miss '" + (cacheName) + "'");
+                     reloadCache(true);
+                 }
                   
-                // }  ,1);
-                  return deferred.promise;
+                 
+                 return deferred.promise;
 
              }
          });
