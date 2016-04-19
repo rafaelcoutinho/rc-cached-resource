@@ -1,0 +1,26 @@
+{
+  "name": "rc-cached-resource",
+  "authors": [
+    "Rafael Thomas Goz Coutinho <rafael.coutinho@gmail.com>"
+  ],
+  "description": "A wrapper or ng-resource with support for local caching",
+  "main": "rcCachedResource.js",
+  "moduleType": [],
+  "keywords": [
+    "ngresource",
+    "cache"
+  ],
+  "dependencies": {
+    "angular": ">=1.0.8",
+    "ngstorage": "^0.3.10"
+  },
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
