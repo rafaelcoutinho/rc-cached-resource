@@ -113,9 +113,10 @@
                                  deferred.resolve(data);
                              }
                          }, function (error) {
-                             $log.log("erro", error)
+                             $log.log("Failed to load from server", error);
                              if (executeCallback) {
                                  if (onFailure != null) {
+                                      $log.log("Returning previously cached");
                                      deferred.resolve(onFailure)
                                  } else {
                                      deferred.reject(error);
