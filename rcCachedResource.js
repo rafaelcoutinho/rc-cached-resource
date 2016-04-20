@@ -34,12 +34,12 @@
          var me = this;
          if(!$localStorage[this.name]){
              $log.debug("creating cached resource",url,this.name,this.cacheTimeout);
-             $localStorage[this.name]={};
+             $localStorage[me.name]={};
          }
          this.clear = function(){
-		      $log.log("Limpando cache",this.name);
-             delete $localStorage[this.name];
-             $localStorage[this.name]={};
+		     $log.log("Limpando cache",me.name);
+             delete $localStorage[me.name];
+             $localStorage[me.name]={};
          }
          if(!actions["get"]){
              actions["get"]={method: 'GET'};
@@ -86,23 +86,23 @@
                  var checkValidity = function (cacheEntry) {
                      var timeout = me.cacheTimeout;
                      if (cacheParams.isCacheValid) {
-                         $log.debug("   using cr_isCacheValid function timeout");
+                        //  $log.debug("   using cr_isCacheValid function timeout");
                          return cacheParams.isCacheValid(cacheEntry, params);
                      } else if (cacheParams.timeout) {
-                         $log.debug("   using actions timeout", (cacheParams.timeout/1000)+"s");
+                        //  $log.debug("   using actions timeout", (cacheParams.timeout/1000)+"s");
                          timeout = cacheParams.timeout;
                      } else {
-                         $log.debug("   using def constructor timeout", (timeout/1000)+"s");
+                        //  $log.debug("   using def constructor timeout", (timeout/1000)+"s");
                      }
 
                      return (timeout <= 0 || ((new Date().getTime() - cache.date) < timeout));
                  }
                  var reloadCache = function (executeCallback, onFailure) {
-                      console.log("    reloadCache ",cacheName,me.res[nameFct]);
+                    //   console.log("    reloadCache ",cacheName,me.res[nameFct]);
                      try{
                      me.res[nameFct](a, b,
                          function (data) {
-                             $log.debug("Storing '" + "("+me.name+"."+cacheName+")' ",$localStorage[me.name][cacheName])
+                            //  $log.debug("Storing '" + "("+me.name+"."+cacheName+")' ",$localStorage[me.name][cacheName])
                              var cacheData = {
                                  data: data,
                                  date: new Date().getTime()
@@ -113,7 +113,7 @@
                                  deferred.resolve(data);
                              }
                          }, function (error) {
-                             $log.log("Failed to load from server", error);
+                             $log.log("Failed to load from server:" + JSON.stringify(error)+" - "+url+" => "+action.url+ " params "+JSON.stringify(a)+" and "+JSON.stringify(b));
                              if (executeCallback) {
                                  if (onFailure != null) {
                                       $log.log("Returning previously cached");
@@ -124,7 +124,7 @@
                              }
                          });
                      }catch(e){
-                         $log.log("erro ceatch", e);
+                         $log.log("erro ceatch " + JSON.stringify(e));
                      }
                  };
                  if (cache && cache.data != null) {
